@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>高爾夫計分 / 算錢系統（v9）</title>
+<style>
+:root{
+  --text:#e9eefc; --muted:#a9b5de; --line:rgba(255,255,255,.10);
+  --accent:#4aa3ff; --warn:#ffd166; --radius:16px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:linear-gradient(180deg,#060914,#07102a 55%, #050814);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom);
+}
+.wrap{max-width:980px;margin:0 auto}
+header{
+  position:sticky; top:0; z-index:60;
+  padding:10px 2px 8px;
+  backdrop-filter: blur(10px);
+  background:rgba(7,11,22,.55);
+  border-bottom:1px solid var(--line);
+}
+h1{font-size:18px;margin:0 0 4px;font-weight:800}
+.sub{font-size:12px;color:var(--muted);line-height:1.35}
+.grid{display:grid;gap:12px}
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:12px;
+  box-shadow: 0 10px 26px rgba(0,0,0,.25);
+}
+.title{font-size:15px;font-weight:800;margin:0 0 10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.field{flex:1 1 150px;min-width:140px}
+label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}
+input,select,button,textarea{
+  width:100%;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background:rgba(7,11,22,.55);
+  color:var(--text);
+  padding:12px 12px;
+  font-size:16px;
+  outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:rgba(74,163,255,.55); box-shadow:0 0 0 4px rgba(74,163,255,.12)}
+.btnRow{display:flex;gap:10px;flex-wrap:wrap}
+.btn{
+  flex:1 1 150px;
+  border:none;
+  background:linear-gradient(180deg, rgba(74,163,255,.95), rgba(74,163,255,.75));
+  color:#07102a;font-weight:900;padding:12px 14px;border-radius:14px
+}
+.btn.secondary{background:rgba(255,255,255,.08);border:1px solid var(--line);color:var(--text);font-weight:800}
+.mini{font-size:12px;color:var(--muted);line-height:1.35;margin-top:8px}
+.hintBox{margin-top:10px;background:rgba(255,209,102,.10);border:1px solid rgba(255,209,102,.28);
+  border-radius:14px;padding:10px 12px;color:#ffe9b3;font-size:12px;line-height:1.45}
+/* Tabs (CSS only) */
+.tabsWrap{
+  position:sticky;top:56px;z-index:55;
+  padding:10px 0 8px;
+  backdrop-filter: blur(10px);
+  background:rgba(7,11,22,.55);
+  border-bottom:1px solid var(--line)
+}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.tabs input{display:none}
+.tabBtn{
+  display:flex;align-items:center;justify-content:center;
+  padding:12px 10px;border-radius:14px;border:1px solid var(--line);
+  background:rgba(255,255,255,.06);color:var(--muted);font-weight:900;
+  user-select:none;-webkit-tap-highlight-color: transparent
+}
+#tab_settings:checked ~ .tabs label[for="tab_settings"],
+#tab_scoring:checked  ~ .tabs label[for="tab_scoring"],
+#tab_settle:checked   ~ .tabs label[for="tab_settle"]{
+  background:rgba(74,163,255,.20);
+  border:1px solid rgba(74,163,255,.45);
+  color:#d7ecff
+}
+.pages > section{display:none}
+#tab_settings:checked ~ .pages #page_settings{display:block}
+#tab_scoring:checked  ~ .pages #page_scoring{display:block}
+#tab_settle:checked   ~ .pages #page_settle{display:block}
+/* scoring cards */
+.holeCard{border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(7,11,22,.35);display:grid;gap:10px}
+.holeTop{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.holeTop b{font-size:14px}
+.inputs4{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.muted{color:var(--muted)}
+/* hole table */
+.tableWrap{overflow:auto;border-radius:14px;border:1px solid var(--line);background:rgba(7,11,22,.35)}
+table{border-collapse:collapse;width:100%;min-width:520px}
+th,td{border-bottom:1px solid var(--line);padding:10px 8px;text-align:center;font-size:13px}
+th{position:sticky;top:0;background:rgba(6,9,20,.92);z-index:5}
+.left{text-align:left;padding-left:12px}
+/* handicap matrix */
+.matrixWrap{overflow:auto;border-radius:14px;border:1px solid var(--line);background:rgba(7,11,22,.35)}
+.matrixWrap table{min-width:620px}
+.diag{color:var(--muted)}
+.cellInput{width:84px;margin:0 auto;font-size:14px;padding:10px 10px}
+</style>
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#07102a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Golf Money">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>高爾夫計分 / 算錢系統（4人）</h1>
+    <div class="sub">
+      ✅ 你說「分頁不見了」：我 v8 做回球場儲存時，把分頁拿掉了。<br>
+      ✅ 這版 v9：<b>分頁回來</b>（設定/計分/結算）＋ <b>球場名稱＆儲存/讀取球洞資訊</b> 都在「設定」頁。
+    </div>
+  </header>
+
+  <div class="tabsWrap">
+    <input type="radio" name="tabs" id="tab_settings" checked>
+    <input type="radio" name="tabs" id="tab_scoring">
+    <input type="radio" name="tabs" id="tab_settle">
+
+    <div class="tabs">
+      <label class="tabBtn" for="tab_settings">設定</label>
+      <label class="tabBtn" for="tab_scoring">計分</label>
+      <label class="tabBtn" for="tab_settle">結算</label>
+    </div>
+
+    <div class="pages" style="margin-top:12px">
+      <!-- SETTINGS -->
+      <section id="page_settings" class="grid">
+        <section class="card">
+          <div class="title">球場</div>
+          <div class="row">
+            <div class="field">
+              <label>球場名稱</label>
+              <input id="courseName" placeholder="例如：彰化球場">
+              <div class="mini">同一個球場名稱會覆蓋更新。</div>
+            </div>
+          </div>
+          <div class="btnRow" style="margin-top:10px">
+            <button class="btn" type="button" onclick="saveCourse()">儲存球洞資訊</button>
+            <button class="btn secondary" type="button" onclick="loadCourse()">讀取球洞資訊</button>
+          </div>
+          <div class="hintBox">若你是用 Safari 開啟（或加入主畫面），localStorage 會最穩；某些預覽器可能會限制儲存。</div>
+        </section>
+
+        <section class="card">
+          <div class="title">玩家</div>
+          <div class="row">
+            <div class="field"><label>玩家 A</label><input id="pA" value="A"></div>
+            <div class="field"><label>玩家 B</label><input id="pB" value="B"></div>
+            <div class="field"><label>玩家 C</label><input id="pC" value="C"></div>
+            <div class="field"><label>玩家 D</label><input id="pD" value="D"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="title">球洞資訊（18 洞：Par / HCP Index）</div>
+          <div class="tableWrap" style="margin-top:10px">
+            <table>
+              <thead>
+                <tr><th class="left">洞</th><th>Par</th><th>HCP</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+          <td class="left">第 1 洞</td>
+          <td><input id="par_1" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_1" type="number" inputmode="numeric" min="1" max="18" value="1"></td>
+        </tr>
+<tr>
+          <td class="left">第 2 洞</td>
+          <td><input id="par_2" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_2" type="number" inputmode="numeric" min="1" max="18" value="2"></td>
+        </tr>
+<tr>
+          <td class="left">第 3 洞</td>
+          <td><input id="par_3" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_3" type="number" inputmode="numeric" min="1" max="18" value="3"></td>
+        </tr>
+<tr>
+          <td class="left">第 4 洞</td>
+          <td><input id="par_4" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_4" type="number" inputmode="numeric" min="1" max="18" value="4"></td>
+        </tr>
+<tr>
+          <td class="left">第 5 洞</td>
+          <td><input id="par_5" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_5" type="number" inputmode="numeric" min="1" max="18" value="5"></td>
+        </tr>
+<tr>
+          <td class="left">第 6 洞</td>
+          <td><input id="par_6" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_6" type="number" inputmode="numeric" min="1" max="18" value="6"></td>
+        </tr>
+<tr>
+          <td class="left">第 7 洞</td>
+          <td><input id="par_7" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_7" type="number" inputmode="numeric" min="1" max="18" value="7"></td>
+        </tr>
+<tr>
+          <td class="left">第 8 洞</td>
+          <td><input id="par_8" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_8" type="number" inputmode="numeric" min="1" max="18" value="8"></td>
+        </tr>
+<tr>
+          <td class="left">第 9 洞</td>
+          <td><input id="par_9" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_9" type="number" inputmode="numeric" min="1" max="18" value="9"></td>
+        </tr>
+<tr>
+          <td class="left">第 10 洞</td>
+          <td><input id="par_10" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_10" type="number" inputmode="numeric" min="1" max="18" value="10"></td>
+        </tr>
+<tr>
+          <td class="left">第 11 洞</td>
+          <td><input id="par_11" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_11" type="number" inputmode="numeric" min="1" max="18" value="11"></td>
+        </tr>
+<tr>
+          <td class="left">第 12 洞</td>
+          <td><input id="par_12" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_12" type="number" inputmode="numeric" min="1" max="18" value="12"></td>
+        </tr>
+<tr>
+          <td class="left">第 13 洞</td>
+          <td><input id="par_13" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_13" type="number" inputmode="numeric" min="1" max="18" value="13"></td>
+        </tr>
+<tr>
+          <td class="left">第 14 洞</td>
+          <td><input id="par_14" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_14" type="number" inputmode="numeric" min="1" max="18" value="14"></td>
+        </tr>
+<tr>
+          <td class="left">第 15 洞</td>
+          <td><input id="par_15" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_15" type="number" inputmode="numeric" min="1" max="18" value="15"></td>
+        </tr>
+<tr>
+          <td class="left">第 16 洞</td>
+          <td><input id="par_16" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_16" type="number" inputmode="numeric" min="1" max="18" value="16"></td>
+        </tr>
+<tr>
+          <td class="left">第 17 洞</td>
+          <td><input id="par_17" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_17" type="number" inputmode="numeric" min="1" max="18" value="17"></td>
+        </tr>
+<tr>
+          <td class="left">第 18 洞</td>
+          <td><input id="par_18" type="number" inputmode="numeric" min="3" max="6" value="4"></td>
+          <td><input id="hcp_18" type="number" inputmode="numeric" min="1" max="18" value="18"></td>
+        </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="title">讓洞設定（比洞賽・全矩陣）</div>
+          <div class="mini">列=給洞的人、欄=收洞的人。例：B 讓 A 3 洞 → B列A欄填 3。</div>
+          <div class="matrixWrap" style="margin-top:10px">
+            <table>
+              <thead>
+                <tr><th class="left">給 \ 收</th><th id='mh_A'>A</th><th id='mh_B'>B</th><th id='mh_C'>C</th><th id='mh_D'>D</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class='left'><b id='mh_A_row'>A</b></td><td class='diag'>—</td><td><input class='cellInput' id='h_A_B' type='number' inputmode='numeric' min='0' max='18' step='1' placeholder='0'></td><td><input class='cellInput' id='h_A_C' type='number' inputmode='numeric' min='0' max='18' step='1' placeholder='0'></td><td><input class='cellInput' id='h_A_D' type='number' inputmode='numeric' min='0' max='18' step='1' placeholder='0'></td></tr>
+<tr><td class='left'><b id='mh_B_row'>B</b></td><td><input class='cellInput' id='h_B_A' type='number' inputmode='numeric' min='0' max='18' step='1' placeholder='0'></td><td class='diag'>—</td><td><input class='cellInput' id='h_B_C' type='number' inputmode='numeric' min='0' max='18' step='1' placeholder='0'></td><td><input class='cellInput' id='h_B_D' type='number' inputmode='numeric' min='0' max='18' step='1' placeholder='0'></td></tr>
+<tr><td class='left'><b id='mh_C_row'>C</b></td><td><input class='cellInput' id='h_C_A' type='number' inputmode='numeric' min='0' max='18' step='1' placeholder='0'></td><td><input class='cellInput' id='h_C_B' type='number' inputmode='numeric' min='0' max='18' step='1' placeholder='0'></td><td class='diag'>—</td><td><input class='cellInput' id='h_C_D' type='number' inputmode='numeric' min='0' max='18' step='1' placeholder='0'></td></tr>
+<tr><td class='left'><b id='mh_D_row'>D</b></td><td><input class='cellInput' id='h_D_A' type='number' inputmode='numeric' min='0' max='18' step='1' placeholder='0'></td><td><input class='cellInput' id='h_D_B' type='number' inputmode='numeric' min='0' max='18' step='1' placeholder='0'></td><td><input class='cellInput' id='h_D_C' type='number' inputmode='numeric' min='0' max='18' step='1' placeholder='0'></td><td class='diag'>—</td></tr>
+
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <!-- SCORING -->
+      <section id="page_scoring" class="grid">
+        <section class="card">
+          <div class="title">計分（只輸入桿數）</div>
+          <div class="mini">這頁只填 A/B/C/D 桿數；Par/HCP 由設定頁帶入（若 JS 可用會顯示在每洞右上角）。</div>
+          <div class="hintBox">
+            <b>玩家：</b>
+            <span style="display:inline-flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+              <span id="chipA" style="padding:6px 10px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.06)">A</span>
+              <span id="chipB" style="padding:6px 10px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.06)">B</span>
+              <span id="chipC" style="padding:6px 10px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.06)">C</span>
+              <span id="chipD" style="padding:6px 10px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.06)">D</span>
+            </span>
+            <div class="mini" style="margin-top:8px">
+              若你是在「Unzip/檔案預覽器」開，可能會限制 JS，導致名字無法自動連動。
+              用「分享 → 在 Safari 開啟 / 加入主畫面」就會正常連動。
+            </div>
+          </div>
+        </section>
+        
+    <div class="holeCard">
+      <div class="holeTop"><b>第 1 洞</b><span class="muted" id="info_1">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_1">A</label><input id="sA_1" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_1">B</label><input id="sB_1" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_1">C</label><input id="sC_1" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_1">D</label><input id="sD_1" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 2 洞</b><span class="muted" id="info_2">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_2">A</label><input id="sA_2" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_2">B</label><input id="sB_2" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_2">C</label><input id="sC_2" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_2">D</label><input id="sD_2" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 3 洞</b><span class="muted" id="info_3">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_3">A</label><input id="sA_3" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_3">B</label><input id="sB_3" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_3">C</label><input id="sC_3" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_3">D</label><input id="sD_3" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 4 洞</b><span class="muted" id="info_4">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_4">A</label><input id="sA_4" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_4">B</label><input id="sB_4" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_4">C</label><input id="sC_4" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_4">D</label><input id="sD_4" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 5 洞</b><span class="muted" id="info_5">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_5">A</label><input id="sA_5" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_5">B</label><input id="sB_5" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_5">C</label><input id="sC_5" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_5">D</label><input id="sD_5" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 6 洞</b><span class="muted" id="info_6">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_6">A</label><input id="sA_6" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_6">B</label><input id="sB_6" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_6">C</label><input id="sC_6" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_6">D</label><input id="sD_6" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 7 洞</b><span class="muted" id="info_7">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_7">A</label><input id="sA_7" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_7">B</label><input id="sB_7" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_7">C</label><input id="sC_7" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_7">D</label><input id="sD_7" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 8 洞</b><span class="muted" id="info_8">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_8">A</label><input id="sA_8" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_8">B</label><input id="sB_8" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_8">C</label><input id="sC_8" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_8">D</label><input id="sD_8" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 9 洞</b><span class="muted" id="info_9">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_9">A</label><input id="sA_9" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_9">B</label><input id="sB_9" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_9">C</label><input id="sC_9" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_9">D</label><input id="sD_9" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 10 洞</b><span class="muted" id="info_10">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_10">A</label><input id="sA_10" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_10">B</label><input id="sB_10" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_10">C</label><input id="sC_10" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_10">D</label><input id="sD_10" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 11 洞</b><span class="muted" id="info_11">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_11">A</label><input id="sA_11" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_11">B</label><input id="sB_11" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_11">C</label><input id="sC_11" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_11">D</label><input id="sD_11" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 12 洞</b><span class="muted" id="info_12">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_12">A</label><input id="sA_12" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_12">B</label><input id="sB_12" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_12">C</label><input id="sC_12" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_12">D</label><input id="sD_12" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 13 洞</b><span class="muted" id="info_13">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_13">A</label><input id="sA_13" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_13">B</label><input id="sB_13" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_13">C</label><input id="sC_13" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_13">D</label><input id="sD_13" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 14 洞</b><span class="muted" id="info_14">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_14">A</label><input id="sA_14" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_14">B</label><input id="sB_14" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_14">C</label><input id="sC_14" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_14">D</label><input id="sD_14" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 15 洞</b><span class="muted" id="info_15">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_15">A</label><input id="sA_15" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_15">B</label><input id="sB_15" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_15">C</label><input id="sC_15" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_15">D</label><input id="sD_15" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 16 洞</b><span class="muted" id="info_16">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_16">A</label><input id="sA_16" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_16">B</label><input id="sB_16" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_16">C</label><input id="sC_16" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_16">D</label><input id="sD_16" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 17 洞</b><span class="muted" id="info_17">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_17">A</label><input id="sA_17" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_17">B</label><input id="sB_17" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_17">C</label><input id="sC_17" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_17">D</label><input id="sD_17" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+
+    <div class="holeCard">
+      <div class="holeTop"><b>第 18 洞</b><span class="muted" id="info_18">Par/HCP：—</span></div>
+      <div class="inputs4">
+        <div class="field"><label id="labA_18">A</label><input id="sA_18" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labB_18">B</label><input id="sB_18" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labC_18">C</label><input id="sC_18" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+        <div class="field"><label id="labD_18">D</label><input id="sD_18" type="number" inputmode="numeric" min="1" max="20" placeholder="桿數"></div>
+      </div>
+    </div>
+    
+      </section>
+
+      <!-- SETTLE -->
+      <section id="page_settle" class="grid">
+        <section class="card">
+          <div class="title">結算</div>
+          <div class="hintBox" id="settleBox">結算區（下一步接：Vegas / 比洞 / 抓Par 自動算錢）</div>
+          <div class="mini">目前先把「分頁 + 球場儲存 + 讓洞全矩陣 + 純計分」整合穩定。</div>
+        </section>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = (id)=>document.getElementById(id);
+
+  function getNames(){
+    return [($("pA")?.value||"A").trim(), ($("pB")?.value||"B").trim(), ($("pC")?.value||"C").trim(), ($("pD")?.value||"D").trim()];
+  }
+
+  function syncNames(){
+    const n=getNames();
+    // scoring labels
+    for(let h=1;h<=18;h++) {
+      const a=$("labA_"+h), b=$("labB_"+h), c=$("labC_"+h), d=$("labD_"+h);
+      if(a) a.textContent=n[0];
+      if(b) b.textContent=n[1];
+      if(c) c.textContent=n[2];
+      if(d) d.textContent=n[3];
+    }
+    // scoring header chips
+    const chipA=document.getElementById("chipA"), chipB=document.getElementById("chipB"), chipC=document.getElementById("chipC"), chipD=document.getElementById("chipD");
+    if(chipA) chipA.textContent=n[0];
+    if(chipB) chipB.textContent=n[1];
+    if(chipC) chipC.textContent=n[2];
+    if(chipD) chipD.textContent=n[3];
+
+    // handicap matrix headers/rows
+    const ps=["A","B","C","D"];
+    for(let i=0;i<4;i++) {
+      const p=ps[i];
+      const th=$("mh_"+p), tr=$("mh_"+p+"_row");
+      if(th) th.textContent=n[i];
+      if(tr) tr.textContent=n[i];
+    }
+  }
+
+  function syncHoleInfoToScoring(){
+    for(let h=1;h<=18;h++) {
+      const par = $("par_"+h)?.value;
+      const hcp = $("hcp_"+h)?.value;
+      const el = $("info_"+h);
+      if(el) el.textContent = (par && hcp) ? `Par/HCP：${par} / ${hcp}` : "Par/HCP：—";
+    }
+  }
+
+  // expose save/load
+  window.saveCourse = function(){
+    const name = ($("courseName")?.value||"").trim();
+    if(!name){ alert("請輸入球場名稱"); return; }
+    const holes=[];
+    for(let i=1;i<=18;i++) {
+      holes.push({
+        par: $("par_"+i).value,
+        hcp: $("hcp_"+i).value
+      });
+    }
+    const payload={holes};
+    try {
+      localStorage.setItem("course_"+name, JSON.stringify(payload));
+      alert("已儲存："+name);
+    } catch(e) {
+      alert("儲存失敗（可能是預覽器限制）。建議用 Safari 開啟。");
+    }
+    syncHoleInfoToScoring();
+  }
+
+  window.loadCourse = function(){
+    const name = ($("courseName")?.value||"").trim();
+    if(!name){ alert("請輸入球場名稱"); return; }
+    let raw=null;
+    try { raw = localStorage.getItem("course_"+name); } catch(e) {}
+    if(!raw){ alert("找不到此球場資料"); return; }
+    const payload = JSON.parse(raw);
+    const holes = payload.holes || [];
+    for(let i=1;i<=18;i++) {
+      if(holes[i-1]) {
+        $("par_"+i).value = holes[i-1].par ?? $("par_"+i).value;
+        $("hcp_"+i).value = holes[i-1].hcp ?? $("hcp_"+i).value;
+      }
+    }
+    alert("已載入："+name);
+    syncHoleInfoToScoring();
+  }
+
+  // listeners
+  ["pA","pB","pC","pD"].forEach(id=>$(id)?.addEventListener("input", syncNames));
+  for(let i=1;i<=18;i++) {
+    $("par_"+i)?.addEventListener("input", syncHoleInfoToScoring);
+    $("hcp_"+i)?.addEventListener("input", syncHoleInfoToScoring);
+  }
+
+
+  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden){ syncNames(); syncHoleInfoToScoring(); }});
+  // init
+  syncNames();
+  syncHoleInfoToScoring();
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}
+</script>
+
+</body>
+</html>
