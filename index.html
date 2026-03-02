@@ -106,17 +106,15 @@ th{position:sticky;top:0;background:rgba(6,9,20,.92);z-index:5}
 .matrixWrap table{min-width:620px}
 .diag{color:var(--muted)}
 .cellInput{width:84px;margin:0 auto;font-size:14px;padding:10px 10px}
+
+/* mode checkboxes */
+.checkGrid{display:grid;gap:10px}
+.checkItem{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid rgba(255,255,255,.10);border-radius:14px;background:rgba(7,11,22,.28)}
+.checkItem input{margin-top:2px;transform:scale(1.2)}
+.checkTxt b{display:block;font-size:14px}
+.checkTxt small{display:block;color:var(--muted);margin-top:2px;line-height:1.25}
+
 </style>
-
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#07102a">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Golf Money">
-<link rel="apple-touch-icon" href="icons/icon-180.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
-
 </head>
 <body>
 <div class="wrap">
@@ -166,7 +164,44 @@ th{position:sticky;top:0;background:rgba(6,9,20,.92);z-index:5}
             <div class="field"><label>玩家 C</label><input id="pC" value="C"></div>
             <div class="field"><label>玩家 D</label><input id="pD" value="D"></div>
           </div>
+        
+        <section class="card">
+          <div class="title">比賽模式（勾選）</div>
+          <div class="mini">今天打幾種就勾幾種。※ 目前只有 <b>Vegas</b> 有完整計算；其他先保留勾選與顯示（之後你定義規則我再加計算）。</div>
+          <div class="checkGrid" style="margin-top:10px">
+            <div class="checkItem">
+              <input type="checkbox" id="m_vegas" checked>
+              <div class="checkTxt">
+                <b>拉斯維加斯（2v2）</b>
+                <small>✅ 已完成計算與結算</small>
+              </div>
+            </div>
+            <div class="checkItem">
+              <input type="checkbox" id="m_match">
+              <div class="checkTxt">
+                <b>比洞賽（Match Play）</b>
+                <small>（待加入規則/讓洞/記分方式）</small>
+              </div>
+            </div>
+            <div class="checkItem">
+              <input type="checkbox" id="m_par">
+              <div class="checkTxt">
+                <b>抓 Par 點數</b>
+                <small>（待定義：birdie/par/柏忌… 怎麼換點）</small>
+              </div>
+            </div>
+            <div class="checkItem">
+              <input type="checkbox" id="m_other">
+              <div class="checkTxt">
+                <b>其他</b>
+                <small>先保留（之後可加：Skins/Stableford…）</small>
+              </div>
+            </div>
+          </div>
+          <div class="hintBox" id="modeHint" style="margin-top:10px"></div>
         </section>
+
+</section>
 
         <section class="card">
           <div class="title">球洞資訊（18 洞：Par / HCP Index）</div>
@@ -531,15 +566,32 @@ th{position:sticky;top:0;background:rgba(6,9,20,.92);z-index:5}
   }
 
   function syncNames(){
-    const n=getNames();
-    // scoring labels
-    for(let h=1;h<=18;h++) {
-      const a=$("labA_"+h), b=$("labB_"+h), c=$("labC_"+h), d=$("labD_"+h);
-      if(a) a.textContent=n[0];
-      if(b) b.textContent=n[1];
-      if(c) c.textContent=n[2];
-      if(d) d.textContent=n[3];
-    }
+  const n=getNames();
+  // header chips
+  const chipA=document.getElementById("chipA"), chipB=document.getElementById("chipB"), chipC=document.getElementById("chipC"), chipD=document.getElementById("chipD");
+  if(chipA) chipA.textContent=n[0];
+  if(chipB) chipB.textContent=n[1];
+  if(chipC) chipC.textContent=n[2];
+  if(chipD) chipD.textContent=n[3];
+
+  // per-hole labels on scoring page
+  for(let i=1;i<=18;i++){
+    const a=document.getElementById("labA_"+i), b=document.getElementById("labB_"+i), c=document.getElementById("labC_"+i), d=document.getElementById("labD_"+i);
+    if(a) a.textContent=n[0];
+    if(b) b.textContent=n[1];
+    if(c) c.textContent=n[2];
+    if(d) d.textContent=n[3];
+  }
+
+  // handicap matrix headers (if exist)
+  ["A","B","C","D"].forEach((k,idx)=>{
+    const el=document.getElementById("hd_"+k);
+    if(el) el.textContent=n[idx];
+  });
+  syncHoleInfoToScoring();
+  syncModesHint();
+}
+
     // scoring header chips
     const chipA=document.getElementById("chipA"), chipB=document.getElementById("chipB"), chipC=document.getElementById("chipC"), chipD=document.getElementById("chipD");
     if(chipA) chipA.textContent=n[0];
@@ -613,20 +665,34 @@ th{position:sticky;top:0;background:rgba(6,9,20,.92);z-index:5}
   }
 
 
-  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden){ syncNames(); syncHoleInfoToScoring(); }});
+  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden){ syncNames();
+    syncModesHint(); syncHoleInfoToScoring(); }});
   // init
   syncNames();
   syncHoleInfoToScoring();
+
+  function selectedModes(){
+    const arr=[];
+    if(document.getElementById("m_vegas")?.checked) arr.push("Vegas");
+    if(document.getElementById("m_match")?.checked) arr.push("比洞");
+    if(document.getElementById("m_par")?.checked) arr.push("抓 Par");
+    if(document.getElementById("m_other")?.checked) arr.push("其他");
+    return arr;
+  }
+
+  function syncModesHint(){
+    const box=document.getElementById("modeHint");
+    if(!box) return;
+    const s=selectedModes();
+    box.innerHTML = "<b>今天勾選：</b> " + (s.length? s.join("、") : "（未勾選）") +
+      "<br><span class='muted'>提示：若只想算一種，就只勾那一種。</span>";
+  }
+
+  ["m_vegas","m_match","m_par","m_other"].forEach(id=>{
+    document.getElementById(id)?.addEventListener("change", syncModesHint);
+  });
+
 })();
 </script>
-
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(()=>{});
-  });
-}
-</script>
-
 </body>
 </html>
